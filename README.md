@@ -15,6 +15,11 @@ For better interaction is recommended to use [virtualenv](https://github.com/pyp
 
 ## Usage
 
-* Register at [devman](https://dvmn.org) and get an auth token.
-* [Get telegram token for bot](https://core.telegram.org/bots/api)
+* Register at [devman](https://dvmn.org) and obtain an auth token.
+* [Get telegram token for your bot](https://core.telegram.org/bots/api).
 * Fill .env file with required parameters. Example of .env file is provided.
+* Run script with
+
+```bash
+python run.py
+```

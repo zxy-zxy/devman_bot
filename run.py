@@ -10,33 +10,12 @@ from logger_config import get_logger
 logger = get_logger(__file__)
 
 
-class DevmanApiAttribute:
-    def __init__(self):
-        self.val = None
-
-    def __set__(self, instance, value):
-        if instance.data is None:
-            self.val = None
-            return
-
-        try:
-            self.val = instance.data[value]
-        except KeyError:
-            self.val = None
-
-    def __get__(self, instance, obj_type):
-        return self.val
-
-
 class DevmanApi:
-    _timestamp = DevmanApiAttribute()
-    _new_attempts = DevmanApiAttribute()
 
     def __init__(self, url, token, timeout):
         self.url = url
         self.token = token
         self.timeout = timeout
-        self._data = None
 
     def request(self, timestamp=None):
         headers = {'Authorization': f'Token {self.token}'}
@@ -48,38 +27,18 @@ class DevmanApi:
         )
         response.raise_for_status()
         self._parse_response_body_to_dict(response)
-        self._timestamp = 'timestamp_to_request'
-        self._new_attempts = 'new_attempts'
+        data = DevmanApi._parse_response_body_to_dict(response)
+        return data
 
-    def _parse_response_body_to_dict(self, response):
+    @staticmethod
+    def _parse_response_body_to_dict(response):
         try:
-            self._data = response.json()
+            return response.json()
         except json.JSONDecodeError:
-            self._data = None
-
-    @property
-    def data(self):
-        return self._data
-
-    @property
-    def timestamp(self):
-        return self._timestamp
-
-    @property
-    def new_attempts(self):
-        return self._new_attempts
+            return None
 
 
-class TelegramNotification:
-    def __init__(self, token, chat_id):
-        self.bot = telegram.Bot(token=token)
-        self.chat_id = chat_id
-
-    def send_notification(self, text):
-        self.bot.send_message(chat_id=self.chat_id, text=text)
-
-
-def parse_attempt_data(attempt_data):
+def get_result_of_examination_attempt(attempt_data):
     lesson_title = attempt_data['lesson_title']
     title_response = f'Your task {lesson_title} has been examinated.'
 
@@ -91,29 +50,31 @@ def parse_attempt_data(attempt_data):
     return '\n'.join([title_response, body_response])
 
 
-def devman_long_polling(devman_api, telegram_notification_api):
+def run_devman_long_polling(devman_api, telegram_bot, telegram_chat_id):
     timestamp = None
 
     while True:
 
         try:
 
-            devman_api.request(timestamp)
+            devman_json_content = devman_api.request(timestamp)
+            if devman_json_content is None:
+                continue
 
-            timestamp = devman_api.timestamp
-            new_attempts = devman_api.new_attempts
+            timestamp = devman_json_content.get('timestamp_to_request', None)
+            examination_attempts = devman_json_content.get('new_attempts', None)
 
             logger.info(f'New timestamp has been recorded: {timestamp}.')
 
-            if not new_attempts:
+            if not examination_attempts:
                 logger.info('No new attempts were found.')
                 continue
 
-            for new_attempt in new_attempts:
-                message_to_notificate = parse_attempt_data(new_attempt)
-                telegram_notification_api.send_notification(message_to_notificate)
+            for attempt in examination_attempts:
+                message_to_notificate = get_result_of_examination_attempt(attempt)
+                telegram_bot.send_message(chat_id=telegram_chat_id, text=message_to_notificate)
 
-        except requests.Timeout as e:
+        except (requests.Timeout, requests.ConnectionError) as e:
             logger.error(e)
             continue
         except (requests.HTTPError, requests.RequestException) as e:
@@ -121,7 +82,7 @@ def devman_long_polling(devman_api, telegram_notification_api):
             break
 
 
-if __name__ == '__main__':
+def main():
     load_dotenv()
 
     devman_url = 'https://dvmn.org/api/long_polling/'
@@ -132,6 +93,11 @@ if __name__ == '__main__':
     telegram_chat_id = os.environ.get('TELEGRAM_CHAT_ID')
 
     devman_api = DevmanApi(devman_url, devman_api_token, timeout)
-    telegram_notification_api = TelegramNotification(telegram_bot_token, telegram_chat_id)
 
-    devman_long_polling(devman_api, telegram_notification_api)
+    telegram_bot = telegram.Bot(token=telegram_bot_token)
+
+    run_devman_long_polling(devman_api, telegram_bot, telegram_chat_id)
+
+
+if __name__ == '__main__':
+    main()
