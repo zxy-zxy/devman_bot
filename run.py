@@ -1,41 +1,13 @@
-import os
-import json
+import sys
 
 import requests
 import telegram
-from dotenv import load_dotenv
 
-from logger_config import get_logger
+from devman.api import DevmanApi
+from utils.logger_config import get_logger
+from utils.config import BOT_CONFIG
 
 logger = get_logger(__file__)
-
-
-class DevmanApi:
-
-    def __init__(self, url, token, timeout):
-        self.url = url
-        self.token = token
-        self.timeout = timeout
-
-    def request(self, timestamp=None):
-        headers = {'Authorization': f'Token {self.token}'}
-        response = requests.get(
-            self.url,
-            headers=headers,
-            timeout=self.timeout,
-            params={'timestamp': timestamp}
-        )
-        response.raise_for_status()
-        self._parse_response_body_to_dict(response)
-        data = DevmanApi._parse_response_body_to_dict(response)
-        return data
-
-    @staticmethod
-    def _parse_response_body_to_dict(response):
-        try:
-            return response.json()
-        except json.JSONDecodeError:
-            return None
 
 
 def get_result_of_examination_attempt(attempt_data):
@@ -83,20 +55,24 @@ def run_devman_long_polling(devman_api, telegram_bot, telegram_chat_id):
 
 
 def main():
-    load_dotenv()
+    has_error = False
+    for key, value in BOT_CONFIG.items():
+        if not BOT_CONFIG[key]:
+            logger.error(f'Environment variable has not been setup properly: {key}')
+            has_error = True
 
-    devman_url = 'https://dvmn.org/api/long_polling/'
+    if has_error:
+        sys.exit(1)
 
-    timeout = int(os.environ.get('TIMEOUT'))
-    devman_api_token = os.environ.get('DEVMAN_TOKEN')
-    telegram_bot_token = os.environ.get('TELEGRAM_TOKEN')
-    telegram_chat_id = os.environ.get('TELEGRAM_CHAT_ID')
+    print()
 
-    devman_api = DevmanApi(devman_url, devman_api_token, timeout)
+    devman_api = DevmanApi(
+        BOT_CONFIG['DEVMAN_URL'], BOT_CONFIG['DEVMAN_TOKEN'], BOT_CONFIG['TIMEOUT']
+    )
 
-    telegram_bot = telegram.Bot(token=telegram_bot_token)
+    telegram_bot = telegram.Bot(token=BOT_CONFIG['TELEGRAM_TOKEN'])
 
-    run_devman_long_polling(devman_api, telegram_bot, telegram_chat_id)
+    run_devman_long_polling(devman_api, telegram_bot, BOT_CONFIG['TELEGRAM_CHAT_ID'])
 
 
 if __name__ == '__main__':
