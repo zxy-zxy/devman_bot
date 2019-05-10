@@ -32,7 +32,8 @@ There is an easy way to deploy this bot with [heroku](https://www.heroku.com/)
 1) Register at [heroku](https://www.heroku.com/).
 2) Connect your github account to heroku and deploy app from your repository.
 3) Install [heroku-cli](https://devcenter.heroku.com/articles/heroku-cli).
-4) Scale your web dynos to 1 or more dynos:
+4) Initialize config variables on your application page.
+5) Scale your web dynos to 1 or more dynos:
 ```bash
 heroku ps:scale bot=1 --app <your_application_name_here>
 heroku heroku logs --tail --app <your_application_name_here>
