@@ -2,6 +2,7 @@ import sys
 
 import requests
 import telegram
+from telegram.error import TelegramError
 
 from devman.api import DevmanApi
 from utils.logger_config import get_logger
@@ -44,11 +45,19 @@ def run_devman_long_polling(devman_api, telegram_bot, telegram_chat_id):
 
             for attempt in examination_attempts:
                 message_to_notificate = get_result_of_examination_attempt(attempt)
-                telegram_bot.send_message(chat_id=telegram_chat_id, text=message_to_notificate)
+                telegram_bot.send_message(
+                    chat_id=telegram_chat_id, text=message_to_notificate
+                )
 
-        except (requests.Timeout, requests.ConnectionError) as e:
+        except (
+            requests.Timeout,
+            requests.ConnectionError,
+            TelegramError,
+            KeyError,
+        ) as e:
             logger.error(e)
             continue
+
         except (requests.HTTPError, requests.RequestException) as e:
             logger.error(e)
             break
@@ -66,15 +75,13 @@ def main():
     if has_error:
         sys.exit(1)
 
-    print()
-
     devman_api = DevmanApi(
         BOT_CONFIG['DEVMAN_URL'], BOT_CONFIG['DEVMAN_TOKEN'], BOT_CONFIG['TIMEOUT']
     )
 
     logger.info('Devman API object has been initialized correctly.')
 
-    telegram_bot = telegram.Bot(token=BOT_CONFIG['TELEGRAM_TOKEN'])
+    telegram_bot = telegram.Bot(token=BOT_CONFIG['TELEGRAM_BOT_TOKEN'])
 
     logger.info('Telegram bot has been initialized correctly.')
 
