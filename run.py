@@ -55,6 +55,8 @@ def run_devman_long_polling(devman_api, telegram_bot, telegram_chat_id):
 
 
 def main():
+    logger.info('Application has started.')
+
     has_error = False
     for key, value in BOT_CONFIG.items():
         if not BOT_CONFIG[key]:
@@ -70,7 +72,11 @@ def main():
         BOT_CONFIG['DEVMAN_URL'], BOT_CONFIG['DEVMAN_TOKEN'], BOT_CONFIG['TIMEOUT']
     )
 
+    logger.info('Devman API object has been initialized correctly.')
+
     telegram_bot = telegram.Bot(token=BOT_CONFIG['TELEGRAM_TOKEN'])
+
+    logger.info('Telegram bot has been initialized correctly.')
 
     run_devman_long_polling(devman_api, telegram_bot, BOT_CONFIG['TELEGRAM_CHAT_ID'])
 
