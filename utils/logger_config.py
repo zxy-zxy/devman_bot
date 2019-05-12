@@ -3,7 +3,7 @@ import logging
 
 import telegram
 
-from utils.config import BOT_CONFIG
+from utils.config import Config
 
 FORMATTER = logging.Formatter('%(asctime)s — %(name)s — %(levelname)s — %(message)s')
 
@@ -31,8 +31,9 @@ def _get_console_handler():
 
 def _get_telegram_handler():
     telegram_handler = TelegramHandler(
-        BOT_CONFIG['TELEGRAM_LOGGER_BOT_TOKEN'],
-        BOT_CONFIG['TELEGRAM_CHAT_ID'])
+        Config.TELEGRAM_LOGGER_BOT_TOKEN,
+        Config.TELEGRAM_CHAT_ID
+    )
     telegram_handler.setFormatter(FORMATTER)
     return telegram_handler
 

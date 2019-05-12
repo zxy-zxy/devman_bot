@@ -1,4 +1,5 @@
 import sys
+import json
 
 import requests
 import telegram
@@ -6,7 +7,7 @@ from telegram.error import TelegramError
 
 from devman.api import DevmanApi
 from utils.logger_config import get_logger
-from utils.config import BOT_CONFIG
+from utils.config import Config
 
 logger = get_logger(__file__)
 
@@ -20,7 +21,7 @@ def get_result_of_examination_attempt(attempt_data):
     else:
         body_response = 'You can go ahead with a next task.'
 
-    return '\n'.join([title_response, body_response])
+    return f'{title_response}\n{body_response}'
 
 
 def run_devman_long_polling(devman_api, telegram_bot, telegram_chat_id):
@@ -29,63 +30,60 @@ def run_devman_long_polling(devman_api, telegram_bot, telegram_chat_id):
     while True:
 
         try:
+            devman_response = devman_api.request(timestamp)
+        except (requests.Timeout, requests.ConnectionError) as e:
+            logger.error(f'An error occurred during connection to remote server: {str(e)}')
+            continue
 
-            devman_json_content = devman_api.request(timestamp)
-            if devman_json_content is None:
-                continue
+        try:
+            devman_json_content = devman_response.json()
+        except json.JSONDecodeError as e:
+            logger.info(f'Cannot parse response from remote server : {str(e)}.')
+            continue
 
-            timestamp = devman_json_content.get('timestamp_to_request', None)
-            examination_attempts = devman_json_content.get('new_attempts', None)
+        timestamp = devman_json_content.get('timestamp_to_request', None) or timestamp
+        examination_attempts = devman_json_content.get('new_attempts', None)
 
-            logger.info(f'New timestamp has been recorded: {timestamp}.')
+        logger.info(f'New timestamp has been recorded: {timestamp}.')
 
-            if not examination_attempts:
-                logger.info('No new attempts were found.')
-                continue
+        if not examination_attempts:
+            logger.info('No new attempts were found.')
+            continue
 
+        try:
             for attempt in examination_attempts:
                 message_to_notificate = get_result_of_examination_attempt(attempt)
                 telegram_bot.send_message(
                     chat_id=telegram_chat_id, text=message_to_notificate
                 )
-
-        except (
-            requests.Timeout,
-            requests.ConnectionError,
-            TelegramError,
-            KeyError,
-        ) as e:
-            logger.error(e)
+        except TelegramError as e:
+            logger.error(f'An error occurred during connection to telegram: {str(e)}')
             continue
-
-        except (requests.HTTPError, requests.RequestException) as e:
-            logger.error(e)
-            break
 
 
 def main():
-    logger.info('Application has started.')
-
-    has_error = False
-    for key, value in BOT_CONFIG.items():
-        if not BOT_CONFIG[key]:
-            logger.error(f'Environment variable has not been setup properly: {key}')
-            has_error = True
-
-    if has_error:
+    errors = []
+    for key in Config.required:
+        if not getattr(Config, key):
+            errors.append(f'Environment variable {key} has not been configured properly.')
+    if errors:
+        error_message = '\n'.join(errors)
+        sys.stdout.write(error_message)
         sys.exit(1)
 
+    logger.info('Application has started.')
+
     devman_api = DevmanApi(
-        BOT_CONFIG['DEVMAN_URL'], BOT_CONFIG['DEVMAN_TOKEN'], BOT_CONFIG['TIMEOUT']
+        Config.DEVMAN_URL, Config.DEVMAN_TOKEN, Config.TIMEOUT
     )
 
     logger.info('Devman API object has been initialized correctly.')
 
-    telegram_bot = telegram.Bot(token=BOT_CONFIG['TELEGRAM_BOT_TOKEN'])
+    telegram_bot = telegram.Bot(token=Config.TELEGRAM_BOT_TOKEN)
 
     logger.info('Telegram bot has been initialized correctly.')
 
-    run_devman_long_polling(devman_api, telegram_bot, BOT_CONFIG['TELEGRAM_CHAT_ID'])
+    run_devman_long_polling(devman_api, telegram_bot, Config.TELEGRAM_CHAT_ID)
 
 
 if __name__ == '__main__':

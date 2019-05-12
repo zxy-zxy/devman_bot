@@ -7,13 +7,8 @@ bot. Script is required 2 different telegram bot token for 2 different bots:
 2) Logger bot which purpose is to send you all log notifications.
 
 ## Requirements
-Python >= 3.6 required.
-
-Install dependencies with 
-```bash
-pip install -r requirements.txt
-```
-For better interaction is recommended to use [virtualenv](https://github.com/pypa/virtualenv).
+Python >= 3.6, Docker version 18.09.0, DockerDocker-compose version 1.21.0 
+are required.
 
 ## Usage
 
@@ -23,12 +18,12 @@ For better interaction is recommended to use [virtualenv](https://github.com/pyp
 * Run script with
 
 ```bash
-python run.py
+docker-compose -f docker-compose-dev.yml up --build
 ```
 
 ## Deploy
 
-There is an easy way to deploy this bot with [heroku](https://www.heroku.com/)
+There is an easy way to deploy this bot with [heroku](https://www.heroku.com/).
 1) Register at [heroku](https://www.heroku.com/).
 2) Connect your github account to heroku and deploy app from your repository.
 3) Install [heroku-cli](https://devcenter.heroku.com/articles/heroku-cli).
