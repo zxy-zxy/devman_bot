@@ -41,21 +41,26 @@ def run_devman_long_polling(devman_api, telegram_bot, telegram_chat_id):
             logger.info(f'Cannot parse response from remote server : {str(e)}.')
             continue
 
-        timestamp = devman_json_content.get('timestamp_to_request', None) or timestamp
-        examination_attempts = devman_json_content.get('new_attempts', None)
-
-        logger.info(f'New timestamp has been recorded: {timestamp}.')
-
-        if not examination_attempts:
-            logger.info('No new attempts were found.')
-            continue
-
         try:
+
+            timestamp = devman_json_content.get('timestamp_to_request', None) or timestamp
+            examination_attempts = devman_json_content.get('new_attempts', None)
+
+            logger.info(f'New timestamp has been recorded: {timestamp}.')
+
+            if not examination_attempts:
+                logger.info('No new attempts were found.')
+                continue
+
             for attempt in examination_attempts:
                 message_to_notificate = get_result_of_examination_attempt(attempt)
                 telegram_bot.send_message(
                     chat_id=telegram_chat_id, text=message_to_notificate
                 )
+
+        except KeyError as e:
+            logger.error(f'An error occurred during reading attributes of response: {str(e)}')
+            continue
         except TelegramError as e:
             logger.error(f'An error occurred during connection to telegram: {str(e)}')
             continue
